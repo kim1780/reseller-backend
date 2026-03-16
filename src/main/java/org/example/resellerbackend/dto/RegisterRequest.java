@@ -1,0 +1,10 @@
+package org.example.resellerbackend.dto;
+
+import lombok.Data;
+
+@Data
+public class RegisterRequest {
+    private String name;
+    private String email;
+    private String role; // เช่น reseller หรือ admin
+}
