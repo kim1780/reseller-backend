@@ -258,20 +258,3 @@ public class ResellerProductController {
     }
 }
 
-// ================= [DTO Classes] =================
-class WalletDTO {
-    public BigDecimal totalBalance;
-    public List<WalletLog> history;
-    public WalletDTO(BigDecimal b, List<WalletLog> h) { this.totalBalance = b; this.history = h; }
-}
-
-class ShopProductResponse {
-    public Long shopProductId; public Long productId; public String productName;
-    public String category; public String imageUrl; public BigDecimal costPrice;
-    public BigDecimal minPrice; public BigDecimal sellingPrice; public Integer stock; public String status;
-
-    public ShopProductResponse(Long spId, Long pId, String pName, String cat, String img, BigDecimal cost, BigDecimal min, BigDecimal sell, Integer st, String stat) {
-        this.shopProductId = spId; this.productId = pId; this.productName = pName; this.category = cat; this.imageUrl = img;
-        this.costPrice = cost; this.minPrice = min; this.sellingPrice = sell; this.stock = st; this.status = stat;
-    }
-}
