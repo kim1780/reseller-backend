@@ -119,34 +119,62 @@ public class ResellerProductController {
     public ResponseEntity<?> getShopOrders(@PathVariable Long shopId) {
         return ResponseEntity.ok(ordersRepository.findByShopIdOrderByCreatedAtDesc(shopId));
     }
-    //8
+    // 8. สร้างออเดอร์และตัดสต็อก (แก้กฎ BR-23 คำนวณกำไรเอง ห้ามไว้ใจ Frontend)
     @Transactional
     @PostMapping("/shops/{shopId}/orders")
     public ResponseEntity<?> createOrder(@PathVariable Long shopId, @RequestBody Orders order) {
-        // ใน Postman มึงส่ง "id": 1 มา
-        // เราจะเอาเลข id นั้นแหละมาค้นหาสินค้าเพื่อตัดสต็อก
+        // order.getId() ที่มึงส่งมาคือ ID สินค้ากลาง
         return productRepository.findById(order.getId()).map(product -> {
-            if (product.getStock() <= 0) {
-                return ResponseEntity.badRequest().body("สินค้าหมดแล้วสัส!");
+
+            // หาว่าร้านนี้ (shopId) เอาสินค้านี้ไปตั้งราคาขายไว้กี่บาทในตาราง shop_products
+            ShopProduct shopProduct = shopProductRepository.findByShopId(shopId).stream()
+                    .filter(sp -> sp.getProductId().equals(product.getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (shopProduct == null) {
+                return ResponseEntity.badRequest().body("มึงยังไม่ได้เพิ่มสินค้านี้เข้าร้านเลยสัส จะขายได้ไง!");
             }
 
-            // 1. ตัดสต็อกตัวที่เลือกจริง ๆ
-            product.setStock(product.getStock() - 1);
+            // สมมติว่าถ้าไม่มีการส่งจำนวนซื้อ (quantity) มา ให้ถือว่าซื้อ 1 ชิ้น
+            int qty = (order.getQuantity() != null && order.getQuantity() > 0) ? order.getQuantity() : 1;
+
+            if (product.getStock() < qty) {
+                return ResponseEntity.badRequest().body("สินค้าไม่พอขายสัส! เหลือแค่ " + product.getStock() + " ชิ้น");
+            }
+
+            // ==========================================
+            // 🔥 หัวใจหลัก BR-23: คำนวณกำไรหลังบ้าน 🔥
+            // สูตร: กำไร = (ราคาขาย - ราคาทุน) x จำนวน
+            // ==========================================
+            BigDecimal costPrice = product.getCostPrice();          // ทุน (จากคลังกลาง)
+            BigDecimal sellingPrice = shopProduct.getSellingPrice(); // ราคาขาย (ที่ Reseller ตั้ง)
+
+            BigDecimal profitPerItem = sellingPrice.subtract(costPrice); // กำไรต่อชิ้น
+            BigDecimal totalProfit = profitPerItem.multiply(BigDecimal.valueOf(qty)); // กำไรรวม
+
+            BigDecimal totalAmount = sellingPrice.multiply(BigDecimal.valueOf(qty)); // ยอดขายรวม (ราคา x จำนวน)
+
+            // 1. ตัดสต็อกตามจำนวนที่สั่งจริง
+            product.setStock(product.getStock() - qty);
             productRepository.save(product);
 
-            // 2. ตั้งค่าออเดอร์
+            // 2. ตั้งค่าออเดอร์ (เซ็ตค่าเงินทับสิ่งที่ Frontend ส่งมาไปเลยสัส!)
             order.setShopId(shopId);
             order.setOrderNumber("ORD-" + System.currentTimeMillis());
+            order.setTotalAmount(totalAmount);      // ยอดขายรวม
+            order.setResellerProfit(totalProfit);// กำไรของ Reseller
+            order.setQuantity(qty); // ยัดจำนวนชิ้นที่คำนวณแล้วลงไป
+            order.setCustomerName(order.getCustomerName());
             order.setCreatedAt(java.time.LocalDateTime.now());
             order.setStatus("pending");
 
-            // 3. บันทึกออเดอร์
+            // 3. บันทึกออเดอร์ลง DB
             return ResponseEntity.ok(ordersRepository.save(order));
-        }).orElse(ResponseEntity.badRequest().body("ไม่เจอสินค้า ID " + order.getId() + " ในระบบนะมิมก์"));
+        }).orElse(ResponseEntity.badRequest().body("ไม่เจอสินค้า ID " + order.getId() + " ในระบบคลังกลางนะสัส"));
     }
 
-    // 9. อัปเดตสถานะออเดอร์ และเอาเงินเข้า Wallet
-    // 9. อัปเดตสถานะออเดอร์ และเอาเงินเข้า Wallet (ฉบับรวมร่างกันเหนียว)
+    // 9. อัปเดตสถานะออเดอร์ (เปลี่ยนเป็นภาษาไทยตามที่มึงสั่ง!)
     @Transactional
     @PutMapping("/shops/{shopId}/orders/{orderId}/status")
     public ResponseEntity<?> updateOrderStatus(
@@ -157,20 +185,19 @@ public class ResellerProductController {
         String newStatus = request.get("status");
 
         return ordersRepository.findById(orderId).map(order -> {
-            // ป้องกันการคิดเงินซ้ำ
-            if ("completed".equalsIgnoreCase(order.getStatus())) {
+            // [จุดที่ 1] ป้องกันการคิดเงินซ้ำ (เปลี่ยนเป็นภาษาไทยสัส!)
+            if ("จัดส่งแล้ว".equalsIgnoreCase(order.getStatus())) {
                 return ResponseEntity.badRequest().body("ออเดอร์นี้จัดส่งและคิดกำไรไปแล้วสัส!");
             }
 
             order.setStatus(newStatus);
             ordersRepository.save(order);
 
-            // เอาเงินเข้า Wallet เมื่อ status เป็น completed
-            if ("completed".equalsIgnoreCase(newStatus)) {
+            // [จุดที่ 2] เอาเงินเข้า Wallet เมื่อ status เป็น จัดส่งแล้ว
+            if ("จัดส่งแล้ว".equalsIgnoreCase(newStatus)) {
                 return shopRepository.findById(shopId).map(shop -> {
                     Long userId = shop.getUserId();
 
-                    // 1. บันทึก Log ประวัติกำไร
                     WalletLog log = new WalletLog();
                     log.setUserId(userId);
                     log.setOrderId(order.getId());
@@ -178,7 +205,6 @@ public class ResellerProductController {
                     log.setCreatedAt(java.time.LocalDateTime.now());
                     walletLogRepository.save(log);
 
-                    // 2. จัดการ Wallet (ถ้าไม่เจอให้สร้างใหม่ ป้องกัน 500)
                     Wallet wallet = walletRepository.findById(userId).orElseGet(() -> {
                         Wallet newW = new Wallet();
                         newW.setUserId(userId);
@@ -186,7 +212,6 @@ public class ResellerProductController {
                         return walletRepository.save(newW);
                     });
 
-                    // 3. บวกเงิน
                     BigDecimal currentBalance = wallet.getBalance() != null ? wallet.getBalance() : BigDecimal.ZERO;
                     BigDecimal profit = order.getResellerProfit() != null ? order.getResellerProfit() : BigDecimal.ZERO;
                     wallet.setBalance(currentBalance.add(profit));
@@ -200,14 +225,12 @@ public class ResellerProductController {
         }).orElse(ResponseEntity.badRequest().body("ไม่พบออเดอร์ ID " + orderId));
     }
 
-    // 10. API สำหรับหน้า Dashboard (รวบยอด)
+    // 10. API Dashboard (นับออเดอร์ค้าง)
     @GetMapping("/shops/{shopId}/dashboard")
     public ResponseEntity<?> getDashboardSummary(@PathVariable Long shopId) {
-
         Shop shop = shopRepository.findById(shopId).orElse(null);
         BigDecimal totalProfit = BigDecimal.ZERO;
 
-        // ดึงยอดเงินจาก Wallet
         if (shop != null) {
             Wallet wallet = walletRepository.findById(shop.getUserId()).orElse(null);
             if (wallet != null && wallet.getBalance() != null) {
@@ -217,7 +240,9 @@ public class ResellerProductController {
 
         List<Orders> allOrders = ordersRepository.findByShopIdOrderByCreatedAtDesc(shopId);
         long totalOrdersCount = allOrders.size();
-        long pendingOrdersCount = allOrders.stream().filter(o -> !"completed".equals(o.getStatus())).count();
+
+        // [จุดที่ 3] แก้เงื่อนไขนับออเดอร์ค้างให้ตรงกันสัส!
+        long pendingOrdersCount = allOrders.stream().filter(o -> !"จัดส่งแล้ว".equals(o.getStatus())).count();
 
         long totalProductsCount = shopProductRepository.findByShopId(shopId).size();
         List<Orders> recentOrders = allOrders.stream().limit(3).toList();

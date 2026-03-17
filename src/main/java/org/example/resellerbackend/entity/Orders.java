@@ -21,4 +21,7 @@ public class Orders {
     private String status;
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+    private Integer quantity;
+    @Column(name = "customer_name")
+    private String customerName;
 }
