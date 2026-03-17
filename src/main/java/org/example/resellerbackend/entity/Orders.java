@@ -24,4 +24,8 @@ public class Orders {
     private Integer quantity;
     @Column(name = "customer_name")
     private String customerName;
+    @Column(name = "customer_phone")
+    private String customerPhone;
+    @Column(name = "customer_address", columnDefinition = "TEXT")
+    private String customerAddress;
 }
