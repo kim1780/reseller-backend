@@ -55,14 +55,14 @@ public class ResellerProductController {
     @PostMapping("/shops/{shopId}/products")
     public ResponseEntity<?> addProductToShop(@PathVariable Long shopId, @RequestBody ShopProduct request) {
         if (!shopRepository.existsById(shopId)) {
-            return ResponseEntity.badRequest().body("ไม่เจอรหัสร้านค้า " + shopId + " เช็ค DBeaver สัส!");
+            return ResponseEntity.badRequest().body("ไม่เจอรหัสร้านค้า " + shopId + " เช็ค DBeaver !");
         }
 
         return productRepository.findById(request.getProductId())
                 .map(central -> {
                     // [ไฮไลท์!] เช็คราคาขายห้ามต่ำกว่า Min Price (กฎ BR-19)
                     if (request.getSellingPrice().compareTo(central.getMinPrice()) < 0) {
-                        return ResponseEntity.badRequest().body("ห้ามขายต่ำกว่าราคาขั้นต่ำ: " + central.getMinPrice() + " บาทสัสคิม!");
+                        return ResponseEntity.badRequest().body("ห้ามขายต่ำกว่าราคาขั้นต่ำ: " + central.getMinPrice() + " บาท!");
                     }
 
                     request.setShopId(shopId);
@@ -86,7 +86,7 @@ public class ResellerProductController {
         return shopProductRepository.findById(shopProductId).map(existing -> {
             Product central = productRepository.findById(existing.getProductId()).orElse(null);
 
-            // [ไฮไลท์!] ต้องเช็คกับ Min Price นะสัส ไม่ใช่ Cost Price
+            // [ไฮไลท์!] ต้องเช็คกับ Min Price นะ ไม่ใช่ Cost Price
             if (central != null && request.getSellingPrice().compareTo(central.getMinPrice()) < 0) {
                 return ResponseEntity.badRequest().body("ราคาห้ามต่ำกว่าราคาขั้นต่ำ " + central.getMinPrice() + " บาท!");
             }
@@ -133,14 +133,14 @@ public class ResellerProductController {
                     .orElse(null);
 
             if (shopProduct == null) {
-                return ResponseEntity.badRequest().body("มึงยังไม่ได้เพิ่มสินค้านี้เข้าร้านเลยสัส จะขายได้ไง!");
+                return ResponseEntity.badRequest().body("ยังไม่ได้เพิ่มสินค้านี้เข้าร้านเลย จะขายได้ไง!");
             }
 
             // สมมติว่าถ้าไม่มีการส่งจำนวนซื้อ (quantity) มา ให้ถือว่าซื้อ 1 ชิ้น
             int qty = (order.getQuantity() != null && order.getQuantity() > 0) ? order.getQuantity() : 1;
 
             if (product.getStock() < qty) {
-                return ResponseEntity.badRequest().body("สินค้าไม่พอขายสัส! เหลือแค่ " + product.getStock() + " ชิ้น");
+                return ResponseEntity.badRequest().body("สินค้าไม่พอขาย! เหลือแค่ " + product.getStock() + " ชิ้น");
             }
 
             // ==========================================
@@ -159,7 +159,7 @@ public class ResellerProductController {
             product.setStock(product.getStock() - qty);
             productRepository.save(product);
 
-            // 2. ตั้งค่าออเดอร์ (เซ็ตค่าเงินทับสิ่งที่ Frontend ส่งมาไปเลยสัส!)
+            // 2. ตั้งค่าออเดอร์ (เซ็ตค่าเงินทับสิ่งที่ Frontend ส่งมาไปเลย!)
             order.setShopId(shopId);
             order.setOrderNumber("ORD-" + System.currentTimeMillis());
             order.setTotalAmount(totalAmount);      // ยอดขายรวม
@@ -171,7 +171,7 @@ public class ResellerProductController {
 
             // 3. บันทึกออเดอร์ลง DB
             return ResponseEntity.ok(ordersRepository.save(order));
-        }).orElse(ResponseEntity.badRequest().body("ไม่เจอสินค้า ID " + order.getId() + " ในระบบคลังกลางนะสัส"));
+        }).orElse(ResponseEntity.badRequest().body("ไม่เจอสินค้า ID " + order.getId() + " ในระบบคลังกลางนะ"));
     }
 
     // 9. อัปเดตสถานะออเดอร์ (เปลี่ยนเป็นภาษาไทยตามที่มึงสั่ง!)
@@ -185,9 +185,9 @@ public class ResellerProductController {
         String newStatus = request.get("status");
 
         return ordersRepository.findById(orderId).map(order -> {
-            // [จุดที่ 1] ป้องกันการคิดเงินซ้ำ (เปลี่ยนเป็นภาษาไทยสัส!)
+            // [จุดที่ 1] ป้องกันการคิดเงินซ้ำ (เปลี่ยนเป็นภาษาไทย!)
             if ("จัดส่งแล้ว".equalsIgnoreCase(order.getStatus())) {
-                return ResponseEntity.badRequest().body("ออเดอร์นี้จัดส่งและคิดกำไรไปแล้วสัส!");
+                return ResponseEntity.badRequest().body("ออเดอร์นี้จัดส่งและคิดกำไรไปแล้ว!");
             }
 
             order.setStatus(newStatus);
@@ -241,7 +241,7 @@ public class ResellerProductController {
         List<Orders> allOrders = ordersRepository.findByShopIdOrderByCreatedAtDesc(shopId);
         long totalOrdersCount = allOrders.size();
 
-        // [จุดที่ 3] แก้เงื่อนไขนับออเดอร์ค้างให้ตรงกันสัส!
+        // [จุดที่ 3] แก้เงื่อนไขนับออเดอร์ค้างให้ตรงกัน!
         long pendingOrdersCount = allOrders.stream().filter(o -> !"จัดส่งแล้ว".equals(o.getStatus())).count();
 
         long totalProductsCount = shopProductRepository.findByShopId(shopId).size();

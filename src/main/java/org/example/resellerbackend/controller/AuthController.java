@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     @Autowired private UserRepository userRepository;
-    @Autowired private ShopRepository shopRepository; // เติมอันนี้ด้วยสัสคิม!
+    @Autowired private ShopRepository shopRepository; // เติมอันนี้ด้วยคิม!
 
     // --- ภารกิจที่ 2: ระบบสมัครสมาชิก (มึงก๊อปส่วนนี้เพิ่มเข้าไป!) ---
     @Transactional
@@ -26,14 +26,14 @@ public class AuthController {
 
         // [BR-13] เช็ค Email ซ้ำ
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("อีเมลนี้ถูกใช้งานแล้วสัส!");
+            return ResponseEntity.badRequest().body("อีเมลนี้ถูกใช้งานแล้ว!");
         }
 
         // [BR-14] เช็คชื่อร้านซ้ำ (ดักไว้ก่อนทำ URL)
         boolean shopExists = shopRepository.findAll().stream()
                 .anyMatch(s -> s.getShopName().equalsIgnoreCase(request.getShopName()));
         if (shopExists) {
-            return ResponseEntity.badRequest().body("ชื่อร้านนี้ถูกใช้แล้วสัส!");
+            return ResponseEntity.badRequest().body("ชื่อร้านนี้ถูกใช้แล้ว!");
         }
 
         // 1. บันทึก User (BR-12: สถานะ pending)
@@ -41,9 +41,9 @@ public class AuthController {
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        user.setPassword(request.getPassword()); // รหัสผ่านดิบๆ ไปก่อนสัส
+        user.setPassword(request.getPassword()); // รหัสผ่านดิบๆ ไปก่อน
         user.setRole("reseller");
-        user.setStatus("pending"); // ต้องรออนุมัติสัสคิม!
+        user.setStatus("pending"); // ต้องรออนุมัติ!
         user.setAddress(request.getAddress());
         User savedUser = userRepository.save(user);
 
@@ -54,20 +54,20 @@ public class AuthController {
         shop.setShopSlug(request.getShopName().toLowerCase().replace(" ", "-")); // ทำ URL ร้าน
         shopRepository.save(shop);
 
-        return ResponseEntity.ok("สมัครสำเร็จ! รอ Admin อนุมัติสถานะสัส!");
+        return ResponseEntity.ok("สมัครสำเร็จ! รอ Admin อนุมัติสถานะ!");
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         return userRepository.findByEmail(request.getEmail()).map(user -> {
             if (!user.getPassword().equals(request.getPassword())) {
-                return ResponseEntity.status(401).body("อีเมลหรือรหัสผ่านไม่ถูกต้องสัสคิม!");
+                return ResponseEntity.status(401).body("อีเมลหรือรหัสผ่านไม่ถูกต้อง!");
             }
             if ("pending".equalsIgnoreCase(user.getStatus())) {
                 return ResponseEntity.status(403).body("บัญชีรออนุมัติ กรุณารอการติดต่อ");
             }
             if ("rejected".equalsIgnoreCase(user.getStatus())) {
-                return ResponseEntity.status(403).body("บัญชีนี้ไม่ได้รับการอนุมัติสัส!");
+                return ResponseEntity.status(403).body("บัญชีนี้ไม่ได้รับการอนุมัติ!");
             }
             return ResponseEntity.ok(user);
         }).orElse(ResponseEntity.status(401).body("ไม่พบผู้ใช้งานในระบบนะคิม"));
@@ -75,6 +75,6 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<?> logout() {
-        return ResponseEntity.ok("Logout สำเร็จแล้วสัส กลับบ้านไปนอนไป๊!");
+        return ResponseEntity.ok("Logout สำเร็จ!");
     }
 }

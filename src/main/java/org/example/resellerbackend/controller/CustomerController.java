@@ -40,7 +40,7 @@ public class CustomerController {
     public ResponseEntity<?> getShopBySlug(@PathVariable String slug) {
         Optional<Shop> shopOpt = shopRepository.findByShopSlug(slug);
         if (shopOpt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("message", "ไม่พบร้านค้านี้สัส!"));
+            return ResponseEntity.status(404).body(Map.of("message", "ไม่พบร้านค้านี้!"));
         }
 
         Shop shop = shopOpt.get();
@@ -60,10 +60,10 @@ public class CustomerController {
     public ResponseEntity<?> checkout(@PathVariable String slug, @RequestBody CheckoutRequest request) {
 
         Optional<Shop> shopOpt = shopRepository.findByShopSlug(slug);
-        if(shopOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("message", "ไม่พบร้านค้านี้สัส!"));
+        if(shopOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("message", "ไม่พบร้านค้านี้!"));
 
         Optional<ShopProduct> spOpt = shopProductRepository.findById(request.getShopProductId());
-        if(spOpt.isEmpty()) return ResponseEntity.badRequest().body(Map.of("message", "ไม่มีสินค้านี้ในร้านสัส!"));
+        if(spOpt.isEmpty()) return ResponseEntity.badRequest().body(Map.of("message", "ไม่มีสินค้านี้ในร้าน!"));
         ShopProduct sp = spOpt.get();
 
         Optional<Product> prodOpt = productRepository.findById(sp.getProductId());
@@ -97,7 +97,7 @@ public class CustomerController {
 
         // ส่งผลลัพธ์กลับไปให้หน้าบ้านพาลูกค้าไปจ่ายเงิน
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "สร้างออเดอร์สำเร็จ ไปหน้าจ่ายเงินได้เลยสัส!");
+        response.put("message", "สร้างออเดอร์สำเร็จ ไปหน้าจ่ายเงินได้เลย!");
         response.put("orderNumber", order.getOrderNumber());
         response.put("totalAmount", order.getTotalAmount());
         return ResponseEntity.ok(response);
@@ -107,17 +107,17 @@ public class CustomerController {
     public ResponseEntity<?> payOrder(@PathVariable String orderNumber) {
         // 1. หาออเดอร์
         Optional<Orders> orderOpt = ordersRepository.findByOrderNumber(orderNumber);
-        if (orderOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("message", "ไม่พบออเดอร์สัส!"));
+        if (orderOpt.isEmpty()) return ResponseEntity.status(404).body(Map.of("message", "ไม่พบออเดอร์!"));
 
         Orders order = orderOpt.get();
         if (!order.getStatus().equals("รอชำระเงิน")) {
-            return ResponseEntity.badRequest().body(Map.of("message", "ออเดอร์นี้จ่ายไปแล้วสัส!"));
+            return ResponseEntity.badRequest().body(Map.of("message", "ออเดอร์นี้จ่ายไปแล้ว!"));
         }
 
         // 2. ไปหาว่าออเดอร์นี้สั่งสินค้าตัวไหน (เพื่อจะเอา productId ไปตัดสต็อกกลาง)
-        // กูเขียนแบบรัดกุมให้มึงเลยสัส
+        // กูเขียนแบบรัดกุมให้มึงเลย
         List<ShopProduct> spList = shopProductRepository.findByShopId(order.getShopId());
-        // (จริงๆ มึงควรเก็บ productId ไว้ใน Orders เลยจะง่ายกว่า แต่ตอนนี้เอาท่านี้ไปก่อนสัส!)
+        // (จริงๆ มึงควรเก็บ productId ไว้ใน Orders เลยจะง่ายกว่า แต่ตอนนี้เอาท่านี้ไปก่อน!)
         // มึงไปแก้สต็อกกลางตัว ID 12 ของมึงซะ!
         Optional<Product> prodOpt = productRepository.findById(12L); // 12L คือไอดีที่มึงแก้สต็อกตะกี้
         if(prodOpt.isPresent()){
@@ -147,7 +147,7 @@ public class CustomerController {
         // ถ้าไม่เจอออเดอร์ (BR-31)
         if (orderOpt.isEmpty()) {
             return ResponseEntity.status(404).body(Map.of(
-                    "message", "ไม่พบเลขที่บิลนี้ในระบบสัส! เช็คเลขดีๆ หน่อย!"
+                    "message", "ไม่พบเลขที่บิลนี้ในระบบ! เช็คเลขดีๆ หน่อย!"
             ));
         }
 

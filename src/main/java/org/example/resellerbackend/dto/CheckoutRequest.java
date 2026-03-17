@@ -7,7 +7,7 @@ public class CheckoutRequest {
     private String customerPhone;
     private String customerAddress;
 
-    // กูเขียน Getter / Setter ให้ครบทุกตัวแล้วสัส ก๊อปไปวางทับได้เลย!
+    // กูเขียน Getter / Setter ให้ครบทุกตัวแล้วก๊อปไปวางทับได้เลย!
     public Long getShopProductId() {
         return shopProductId;
     }

@@ -6,9 +6,9 @@ import lombok.Data;
 public class RegisterRequest {
     private String name;
     private String email;
-    private String phone;      // เติมสัส!
-    private String password;   // เติมสัส!
-    private String shopName;   // เติมสัส! (เอาไปทำชื่อร้าน)
-    private String address;    // เติมสัส!
+    private String phone;      // เติม!
+    private String password;   // เติม!
+    private String shopName;   // เติม! (เอาไปทำชื่อร้าน)
+    private String address;    // เติม!
     private String role;       // ปกติคือ "reseller"
 }
