@@ -1,8 +1,8 @@
-package org.example.resellerbackend.controller;
+package org.example.resellerbackend.dto;
 
 import java.math.BigDecimal;
 
-class ShopProductResponse {
+public class ShopProductResponse {
     public Long shopProductId;
     public Long productId;
     public String productName;
@@ -14,6 +14,7 @@ class ShopProductResponse {
     public Integer stock;
     public String status;
 
+    // คืนชีพ Constructor ให้มัน!
     public ShopProductResponse(Long spId, Long pId, String pName, String cat, String img, BigDecimal cost, BigDecimal min, BigDecimal sell, Integer st, String stat) {
         this.shopProductId = spId;
         this.productId = pId;

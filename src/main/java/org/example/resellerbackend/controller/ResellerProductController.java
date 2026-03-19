@@ -1,5 +1,6 @@
 package org.example.resellerbackend.controller;
 
+import org.example.resellerbackend.dto.ShopProductResponse;
 import org.example.resellerbackend.entity.*;
 import org.example.resellerbackend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;

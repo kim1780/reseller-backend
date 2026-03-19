@@ -21,6 +21,9 @@ public class AdminProductEntity {
 
     private Integer stock;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     // --- Getters and Setters ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -36,4 +39,7 @@ public class AdminProductEntity {
 
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }

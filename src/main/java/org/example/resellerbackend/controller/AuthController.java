@@ -11,52 +11,51 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
 
     @Autowired private UserRepository userRepository;
-    @Autowired private ShopRepository shopRepository; // เติมอันนี้ด้วยคิม!
+    @Autowired private ShopRepository shopRepository;
 
-    // --- ภารกิจที่ 2: ระบบสมัครสมาชิก (มึงก๊อปส่วนนี้เพิ่มเข้าไป!) ---
     @Transactional
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-
-        // [BR-13] เช็ค Email ซ้ำ
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("อีเมลนี้ถูกใช้งานแล้ว!");
         }
 
-        // [BR-14] เช็คชื่อร้านซ้ำ (ดักไว้ก่อนทำ URL)
         boolean shopExists = shopRepository.findAll().stream()
                 .anyMatch(s -> s.getShopName().equalsIgnoreCase(request.getShopName()));
         if (shopExists) {
             return ResponseEntity.badRequest().body("ชื่อร้านนี้ถูกใช้แล้ว!");
         }
 
-        // 1. บันทึก User (BR-12: สถานะ pending)
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        user.setPassword(request.getPassword()); // รหัสผ่านดิบๆ ไปก่อน
+        user.setPassword(request.getPassword());
         user.setRole("reseller");
-        user.setStatus("pending"); // ต้องรออนุมัติ!
+        user.setStatus("pending");
         user.setAddress(request.getAddress());
         User savedUser = userRepository.save(user);
 
-        // 2. บันทึก Shop (ภารกิจที่ 4: ลิงก์หน้าร้านส่วนตัว)
         Shop shop = new Shop();
         shop.setUserId(savedUser.getId());
         shop.setShopName(request.getShopName());
-        shop.setShopSlug(request.getShopName().toLowerCase().replace(" ", "-")); // ทำ URL ร้าน
+        shop.setShopSlug(request.getShopName().toLowerCase().replace(" ", "-"));
         shopRepository.save(shop);
 
         return ResponseEntity.ok("สมัครสำเร็จ! รอ Admin อนุมัติสถานะ!");
     }
 
+    // ✅ แก้แล้ว: ส่ง shopId และ shopSlug กลับมาด้วยตอน login
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         return userRepository.findByEmail(request.getEmail()).map(user -> {
@@ -69,8 +68,28 @@ public class AuthController {
             if ("rejected".equalsIgnoreCase(user.getStatus())) {
                 return ResponseEntity.status(403).body("บัญชีนี้ไม่ได้รับการอนุมัติ!");
             }
-            return ResponseEntity.ok(user);
-        }).orElse(ResponseEntity.status(401).body("ไม่พบผู้ใช้งานในระบบนะคิม"));
+
+            // สร้าง response object รวม shopId ไว้ด้วย
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", user.getId());
+            response.put("name", user.getName());
+            response.put("email", user.getEmail());
+            response.put("role", user.getRole());
+            response.put("status", user.getStatus());
+            response.put("phone", user.getPhone());
+            response.put("address", user.getAddress());
+
+            // ดึง shopId และ shopSlug จาก Shop table
+            Optional<Shop> shopOpt = shopRepository.findByUserId(user.getId());
+            if (shopOpt.isPresent()) {
+                Shop shop = shopOpt.get();
+                response.put("shopId", shop.getId());
+                response.put("shopSlug", shop.getShopSlug());
+                response.put("shopName", shop.getShopName());
+            }
+
+            return ResponseEntity.ok(response);
+        }).orElse(ResponseEntity.status(401).body("ไม่พบผู้ใช้งานในระบบ"));
     }
 
     @PostMapping("/logout")

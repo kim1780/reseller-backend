@@ -22,6 +22,8 @@ public class AddProductReq {
     @Min(value = 0, message = "สต๊อกสินค้าต้องไม่ติดลบ")
     private Integer stock;
 
+    private String imageUrl;
+
     // --- Getters and Setters ---
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -34,4 +36,7 @@ public class AddProductReq {
 
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }
