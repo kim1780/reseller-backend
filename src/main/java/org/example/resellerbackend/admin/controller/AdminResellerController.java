@@ -16,19 +16,16 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin/resellers")
 public class AdminResellerController {
 
-    // ✅ ใช้ UserRepository และ ShopRepository ตัวเดียวกับที่ Register ใช้
     @Autowired private UserRepository userRepository;
     @Autowired private ShopRepository shopRepository;
 
-    // ดึง reseller ทั้งหมด พร้อมชื่อร้าน
     @GetMapping("/all")
     public ResponseEntity<?> getAllResellers() {
         List<User> resellers = userRepository.findAll().stream()
                 .filter(u -> "reseller".equals(u.getRole()))
-                .sorted(Comparator.comparingLong(User::getId).reversed()) // ใหม่ขึ้นก่อน
+                .sorted(Comparator.comparingLong(User::getId).reversed())
                 .collect(Collectors.toList());
 
-        // รวม shopName เข้าไปด้วย
         List<Map<String, Object>> result = resellers.stream().map(u -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", u.getId());
@@ -37,8 +34,9 @@ public class AdminResellerController {
             m.put("phone", u.getPhone());
             m.put("address", u.getAddress());
             m.put("status", u.getStatus());
+            // ✅ เพิ่ม createdAt
+            m.put("createdAt", u.getCreatedAt());
 
-            // ดึงชื่อร้านและ slug
             shopRepository.findByUserId(u.getId()).ifPresent(shop -> {
                 m.put("shopName", shop.getShopName());
                 m.put("shopSlug", shop.getShopSlug());
@@ -51,7 +49,6 @@ public class AdminResellerController {
         return ResponseEntity.ok(result);
     }
 
-    // อนุมัติตัวแทน
     @PutMapping("/{id}/approve")
     public ResponseEntity<String> approveReseller(@PathVariable Long id) {
         return userRepository.findById(id).map(user -> {
@@ -61,7 +58,6 @@ public class AdminResellerController {
         }).orElse(ResponseEntity.badRequest().body("ไม่พบตัวแทน ID " + id));
     }
 
-    // ปฏิเสธตัวแทน
     @PutMapping("/{id}/reject")
     public ResponseEntity<String> rejectReseller(@PathVariable Long id) {
         return userRepository.findById(id).map(user -> {

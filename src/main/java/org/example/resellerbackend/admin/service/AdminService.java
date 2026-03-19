@@ -6,8 +6,14 @@ import org.example.resellerbackend.admin.entity.*;
 import org.example.resellerbackend.admin.repository.*;
 import org.example.resellerbackend.entity.Orders;
 import org.example.resellerbackend.entity.User;
+import org.example.resellerbackend.entity.Wallet;
+import org.example.resellerbackend.entity.WalletLog;
 import org.example.resellerbackend.repository.OrdersRepository;
 import org.example.resellerbackend.repository.UserRepository;
+import org.example.resellerbackend.repository.WalletRepository;
+import org.example.resellerbackend.repository.WalletLogRepository;
+import org.example.resellerbackend.repository.ShopRepository;
+import org.example.resellerbackend.entity.Shop;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,29 +21,25 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AdminService {
     private final AdminProductRepository productRepo;
     private final AdminOrderRepository orderRepo;
-    private final AdminWalletRepository walletRepo;
-    private final AdminWalletLogRepository walletLogRepo;
-
-    // ✅ ใช้ Repository จริงที่ Register/Checkout ใช้
-    @Autowired private UserRepository userRepository;
-    @Autowired private OrdersRepository ordersRepository;
-
-    // ยังคง AdminUserRepository ไว้สำหรับ legacy methods ที่ยังใช้อยู่
     private final AdminUserRepository userRepo;
 
-    public AdminService(AdminProductRepository p, AdminUserRepository u,
-                        AdminOrderRepository o, AdminWalletRepository w,
-                        AdminWalletLogRepository wl) {
+    // ✅ ใช้ Repository เดียวกับ reseller (wallets table จริง)
+    @Autowired private UserRepository userRepository;
+    @Autowired private OrdersRepository ordersRepository;
+    @Autowired private WalletRepository walletRepository;
+    @Autowired private WalletLogRepository walletLogRepository;
+    @Autowired private ShopRepository shopRepository;
+
+    public AdminService(AdminProductRepository p, AdminUserRepository u, AdminOrderRepository o) {
         this.productRepo = p;
         this.userRepo = u;
         this.orderRepo = o;
-        this.walletRepo = w;
-        this.walletLogRepo = wl;
     }
 
     public AdminUserEntity getUserByEmail(String email) {
@@ -78,7 +80,6 @@ public class AdminService {
         productRepo.deleteById(id);
     }
 
-    // ยังคงไว้สำหรับ backward compat (ไม่ใช้แล้วหลัง AdminResellerController แก้)
     public List<AdminUserEntity> getAllResellers() {
         List<AdminUserEntity> list = new ArrayList<>();
         userRepo.findAll().forEach(u -> {
@@ -94,50 +95,73 @@ public class AdminService {
         userRepo.save(u);
     }
 
-    public List<AdminOrderEntity> getAllOrders() {
-        return orderRepo.findTop100ByOrderByIdDesc();
+    // ✅ ดึงจาก ordersRepository จริง ไม่ใช่ adminOrderRepo
+    public List<Orders> getAllOrders() {
+        return ordersRepository.findAll()
+                .stream()
+                .sorted((a, b) -> b.getId().compareTo(a.getId()))
+                .limit(100)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Transactional
     public void shipOrder(Long orderId) {
-        AdminOrderEntity order = orderRepo.findById(orderId)
+        // ✅ ใช้ ordersRepository จริง
+        Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("ไม่พบออเดอร์"));
 
-        if (!"pending".equals(order.getStatus()) && !"รอดำเนินการ".equals(order.getStatus())) {
+        if (!"pending".equals(order.getStatus())
+                && !"รอดำเนินการ".equals(order.getStatus())
+                && !"รอชำระเงิน".equals(order.getStatus())) {
             throw new RuntimeException("ออเดอร์นี้ไม่ได้รอดำเนินการ");
         }
 
         order.setStatus("shipped");
-        orderRepo.save(order);
+        ordersRepository.save(order);
 
-        AdminWalletEntity wallet = walletRepo.findByShopId(order.getShopId());
-        if (wallet != null) {
-            wallet.setBalance(wallet.getBalance().add(order.getResellerProfit()));
-            walletRepo.save(wallet);
+        // ✅ หา userId จาก shop → หา wallet ด้วย userId (เหมือน reseller)
+        Shop shop = shopRepository.findById(order.getShopId()).orElse(null);
+        if (shop == null) return;
 
-            AdminWalletLogEntity log = new AdminWalletLogEntity();
-            log.setWalletId(wallet.getId());
-            log.setAmount(order.getResellerProfit());
-            walletLogRepo.save(log);
-        }
+        Long userId = shop.getUserId();
+        BigDecimal profit = order.getResellerProfit() != null
+                ? order.getResellerProfit() : BigDecimal.ZERO;
+
+        // บันทึก WalletLog
+        WalletLog log = new WalletLog();
+        log.setUserId(userId);
+        log.setOrderId(order.getId());
+        log.setAmount(profit);
+        log.setCreatedAt(java.time.LocalDateTime.now());
+        walletLogRepository.save(log);
+
+        // อัปเดต Wallet balance
+        Wallet wallet = walletRepository.findById(userId).orElseGet(() -> {
+            Wallet newW = new Wallet();
+            newW.setUserId(userId);
+            newW.setBalance(BigDecimal.ZERO);
+            return walletRepository.save(newW);
+        });
+
+        BigDecimal current = wallet.getBalance() != null ? wallet.getBalance() : BigDecimal.ZERO;
+        wallet.setBalance(current.add(profit));
+        walletRepository.save(wallet);
     }
 
     public void completeOrder(Long orderId) {
-        AdminOrderEntity order = orderRepo.findById(orderId)
+        // ✅ ใช้ ordersRepository จริง
+        Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("ไม่พบออเดอร์"));
         order.setStatus("completed");
-        orderRepo.save(order);
+        ordersRepository.save(order);
     }
 
-    // ✅ แก้แล้ว: ดึงจาก ordersRepository และ userRepository จริง
     public AdminDashboardRes getDashboardStats() {
         AdminDashboardRes res = new AdminDashboardRes();
 
-        // นับออเดอร์จาก orders table จริง
         List<Orders> allOrders = ordersRepository.findAll();
         for (Orders o : allOrders) {
             res.setTotalOrders(res.getTotalOrders() + 1);
-
             String status = o.getStatus();
             if ("pending".equals(status) || "รอดำเนินการ".equals(status) || "รอชำระเงิน".equals(status)) {
                 res.setPendingOrders(res.getPendingOrders() + 1);
@@ -150,16 +174,11 @@ public class AdminService {
             }
         }
 
-        // นับ reseller จาก users table จริง
         List<User> allUsers = userRepository.findAll();
         for (User u : allUsers) {
             if ("reseller".equals(u.getRole())) {
-                if ("approved".equals(u.getStatus())) {
-                    res.setTotalResellers(res.getTotalResellers() + 1);
-                }
-                if ("pending".equals(u.getStatus())) {
-                    res.setPendingResellers(res.getPendingResellers() + 1);
-                }
+                if ("approved".equals(u.getStatus())) res.setTotalResellers(res.getTotalResellers() + 1);
+                if ("pending".equals(u.getStatus())) res.setPendingResellers(res.getPendingResellers() + 1);
             }
         }
 
