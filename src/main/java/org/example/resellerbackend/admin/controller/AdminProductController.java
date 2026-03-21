@@ -8,6 +8,7 @@ import org.example.resellerbackend.admin.service.AdminService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @CrossOrigin("*")
 @RestController
@@ -21,13 +22,12 @@ public class AdminProductController {
     }
 
     @PostMapping("/add")
-    // เติม @Valid ไว้ตรงนี้ 👇
-    public ResponseEntity<String> addProduct(@Valid @RequestBody AddProductReq req) {
+    public ResponseEntity<?> addProduct(@Valid @RequestBody AddProductReq req) {
         if (req.getMinPrice().compareTo(req.getCostPrice()) < 0) {
-            return ResponseEntity.badRequest().body("ราคาขั้นต่ำต้องมากกว่าหรือเท่ากับราคาทุน");
+            return ResponseEntity.badRequest().body(Map.of("message", "ราคาขั้นต่ำต้องมากกว่าหรือเท่ากับราคาทุน"));
         }
         adminService.addProduct(req);
-        return ResponseEntity.ok("เพิ่มสินค้าเรียบร้อยแล้ว");
+        return ResponseEntity.ok(Map.of("message", "เพิ่มสินค้าเรียบร้อยแล้ว"));
     }
 
     @GetMapping("/all")
@@ -42,26 +42,25 @@ public class AdminProductController {
     }
 
     @PutMapping("/edit/{id}")
-    // เติม @Valid ไว้ตรงนี้ด้วย 👇
-    public ResponseEntity<String> editProduct(@PathVariable Long id, @Valid @RequestBody AddProductReq req) {
+    public ResponseEntity<?> editProduct(@PathVariable Long id, @Valid @RequestBody AddProductReq req) {
         if (req.getMinPrice().compareTo(req.getCostPrice()) < 0) {
-            return ResponseEntity.badRequest().body("ราคาขั้นต่ำต้องมากกว่าหรือเท่ากับราคาทุน");
+            return ResponseEntity.badRequest().body(Map.of("message", "ราคาขั้นต่ำต้องมากกว่าหรือเท่ากับราคาทุน"));
         }
         try {
             adminService.editProduct(id, req);
-            return ResponseEntity.ok("แก้ไขสินค้าเรียบร้อยแล้ว");
+            return ResponseEntity.ok(Map.of("message", "แก้ไขสินค้าเรียบร้อยแล้ว"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try {
             adminService.deleteProduct(id);
-            return ResponseEntity.ok("ลบสินค้าเรียบร้อยแล้ว");
+            return ResponseEntity.ok(Map.of("message", "ลบสินค้าเรียบร้อยแล้ว"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("ไม่สามารถลบสินค้าได้ เนื่องจากมีออเดอร์ค้างอยู่");
+            return ResponseEntity.badRequest().body(Map.of("message", "ไม่สามารถลบสินค้าได้ เนื่องจากมีออเดอร์ค้างอยู่"));
         }
     }
 }

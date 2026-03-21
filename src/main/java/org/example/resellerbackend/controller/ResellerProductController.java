@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reseller")
@@ -22,6 +25,7 @@ public class ResellerProductController {
     @Autowired private ShopRepository shopRepository;
     @Autowired private WalletRepository walletRepository;
     @Autowired private WalletLogRepository walletLogRepository;
+    @Autowired private OrderItemRepository orderItemRepository;
 
     // 1. ดึงสินค้าในร้าน (หน้า ร้านของฉัน)
     @GetMapping("/shops/{shopId}/products")
@@ -41,7 +45,7 @@ public class ResellerProductController {
     @GetMapping("/shops/{shopId}/wallet")
     public ResponseEntity<?> getWallet(@PathVariable Long shopId) {
         Shop shop = shopRepository.findById(shopId).orElse(null);
-        if (shop == null) return ResponseEntity.badRequest().body("ไม่พบร้านค้านี้");
+        if (shop == null) return ResponseEntity.badRequest().body(Map.of("message", "ไม่พบร้านค้านี้"));
 
         Long userId = shop.getUserId();
         Wallet wallet = walletRepository.findById(userId).orElse(new Wallet());
@@ -56,14 +60,14 @@ public class ResellerProductController {
     @PostMapping("/shops/{shopId}/products")
     public ResponseEntity<?> addProductToShop(@PathVariable Long shopId, @RequestBody ShopProduct request) {
         if (!shopRepository.existsById(shopId)) {
-            return ResponseEntity.badRequest().body("ไม่เจอรหัสร้านค้า " + shopId + " เช็ค DBeaver !");
+            return ResponseEntity.badRequest().body(Map.of("message", "ไม่เจอรหัสร้านค้า " + shopId + " เช็ค DBeaver !"));
         }
 
         return productRepository.findById(request.getProductId())
                 .map(central -> {
                     // [ไฮไลท์!] เช็คราคาขายห้ามต่ำกว่า Min Price (กฎ BR-19)
                     if (request.getSellingPrice().compareTo(central.getMinPrice()) < 0) {
-                        return ResponseEntity.badRequest().body("ห้ามขายต่ำกว่าราคาขั้นต่ำ: " + central.getMinPrice() + " บาท!");
+                        return ResponseEntity.badRequest().body(Map.of("message", "ห้ามขายต่ำกว่าราคาขั้นต่ำ: " + central.getMinPrice() + " บาท!"));
                     }
 
                     request.setShopId(shopId);
@@ -72,9 +76,9 @@ public class ResellerProductController {
                     try {
                         return ResponseEntity.ok(shopProductRepository.save(request));
                     } catch (Exception e) {
-                        return ResponseEntity.internalServerError().body("DB ระเบิด: " + e.getMessage());
+                        return ResponseEntity.internalServerError().body(Map.of("message", "DB ระเบิด: " + e.getMessage()));
                     }
-                }).orElse(ResponseEntity.badRequest().body("ไม่เจอสินค้า ID " + request.getProductId()));
+                }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่เจอสินค้า ID " + request.getProductId())));
     }
 
     // 4. แก้ไขราคาขาย (เช็คกฎ BR-19 เหมือนกัน)
@@ -89,11 +93,11 @@ public class ResellerProductController {
 
             // [ไฮไลท์!] ต้องเช็คกับ Min Price นะ ไม่ใช่ Cost Price
             if (central != null && request.getSellingPrice().compareTo(central.getMinPrice()) < 0) {
-                return ResponseEntity.badRequest().body("ราคาห้ามต่ำกว่าราคาขั้นต่ำ " + central.getMinPrice() + " บาท!");
+                return ResponseEntity.badRequest().body(Map.of("message", "ราคาห้ามต่ำกว่าราคาขั้นต่ำ " + central.getMinPrice() + " บาท!"));
             }
             existing.setSellingPrice(request.getSellingPrice());
             return ResponseEntity.ok(shopProductRepository.save(existing));
-        }).orElse(ResponseEntity.badRequest().body("ไม่พบสินค้าที่จะแก้ไข"));
+        }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่พบสินค้าที่จะแก้ไข")));
     }
 
     // 5. ลบสินค้าออกจากร้าน (สำหรับปุ่ม ถังขยะ)
@@ -104,9 +108,9 @@ public class ResellerProductController {
 
         if (shopProductRepository.existsById(shopProductId)) {
             shopProductRepository.deleteById(shopProductId);
-            return ResponseEntity.ok("ลบสินค้าเรียบร้อยแล้ว");
+            return ResponseEntity.ok(Map.of("message", "ลบสินค้าเรียบร้อยแล้ว"));
         }
-        return ResponseEntity.badRequest().body("ไม่พบสินค้าที่จะลบ");
+        return ResponseEntity.badRequest().body(Map.of("message", "ไม่พบสินค้าที่จะลบ"));
     }
 
     // 6. ดึงรายการสินค้ากลางทั้งหมด (หน้า สินค้ากลาง)
@@ -119,6 +123,31 @@ public class ResellerProductController {
     @GetMapping("/shops/{shopId}/orders")
     public ResponseEntity<?> getShopOrders(@PathVariable Long shopId) {
         return ResponseEntity.ok(ordersRepository.findByShopIdOrderByCreatedAtDesc(shopId));
+    }
+
+    // [ไฮไลท์!] 7.1 ดึงรายการสินค้าในออเดอร์ (แก้ให้ Reseller ดูรูปได้)
+    @GetMapping("/shops/{shopId}/orders/{orderId}/items")
+    public ResponseEntity<?> getOrderItems(@PathVariable Long shopId, @PathVariable Long orderId) {
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        List<Map<String, Object>> result = items.stream().map(item -> {
+            String productName = "สินค้า #" + item.getProductId();
+            String productImage = "";
+            Optional<Product> prodOpt = productRepository.findById(item.getProductId());
+            if (prodOpt.isPresent()) {
+                productName = prodOpt.get().getName();
+                productImage = prodOpt.get().getImageUrl() != null ? prodOpt.get().getImageUrl() : "";
+            }
+            return Map.<String, Object>of(
+                    "id", item.getId(),
+                    "productId", item.getProductId(),
+                    "productName", productName,
+                    "productImage", productImage,
+                    "quantity", item.getQuantity(),
+                    "costPrice", item.getCostPrice(),
+                    "sellingPrice", item.getSellingPrice()
+            );
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
     // 8. สร้างออเดอร์และตัดสต็อก (แก้กฎ BR-23 คำนวณกำไรเอง ห้ามไว้ใจ Frontend)
     @Transactional
@@ -134,14 +163,14 @@ public class ResellerProductController {
                     .orElse(null);
 
             if (shopProduct == null) {
-                return ResponseEntity.badRequest().body("ยังไม่ได้เพิ่มสินค้านี้เข้าร้านเลย จะขายได้ไง!");
+                return ResponseEntity.badRequest().body(Map.of("message", "ยังไม่ได้เพิ่มสินค้านี้เข้าร้านเลย จะขายได้ไง!"));
             }
 
             // สมมติว่าถ้าไม่มีการส่งจำนวนซื้อ (quantity) มา ให้ถือว่าซื้อ 1 ชิ้น
             int qty = (order.getQuantity() != null && order.getQuantity() > 0) ? order.getQuantity() : 1;
 
             if (product.getStock() < qty) {
-                return ResponseEntity.badRequest().body("สินค้าไม่พอขาย! เหลือแค่ " + product.getStock() + " ชิ้น");
+                return ResponseEntity.badRequest().body(Map.of("message", "สินค้าไม่พอขาย! เหลือแค่ " + product.getStock() + " ชิ้น"));
             }
 
             // ==========================================
@@ -172,7 +201,7 @@ public class ResellerProductController {
 
             // 3. บันทึกออเดอร์ลง DB
             return ResponseEntity.ok(ordersRepository.save(order));
-        }).orElse(ResponseEntity.badRequest().body("ไม่เจอสินค้า ID " + order.getId() + " ในระบบคลังกลางนะ"));
+        }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่เจอสินค้า ID " + order.getId() + " ในระบบคลังกลางนะ")));
     }
 
     // 9. อัปเดตสถานะออเดอร์ (เปลี่ยนเป็นภาษาไทยตามที่มึงสั่ง!)
@@ -188,7 +217,7 @@ public class ResellerProductController {
         return ordersRepository.findById(orderId).map(order -> {
             // [จุดที่ 1] ป้องกันการคิดเงินซ้ำ (เปลี่ยนเป็นภาษาไทย!)
             if ("จัดส่งแล้ว".equalsIgnoreCase(order.getStatus())) {
-                return ResponseEntity.badRequest().body("ออเดอร์นี้จัดส่งและคิดกำไรไปแล้ว!");
+                return ResponseEntity.badRequest().body(Map.of("message", "ออเดอร์นี้จัดส่งและคิดกำไรไปแล้ว!"));
             }
 
             order.setStatus(newStatus);
@@ -218,12 +247,12 @@ public class ResellerProductController {
                     wallet.setBalance(currentBalance.add(profit));
                     walletRepository.save(wallet);
 
-                    return ResponseEntity.ok("อัปเดตสถานะและโอนกำไรเข้า Wallet เรียบร้อยแล้ว!");
-                }).orElse(ResponseEntity.badRequest().body("ไม่เจอรหัสร้านค้า " + shopId));
+                    return ResponseEntity.ok(Map.of("message", "อัปเดตสถานะและโอนกำไรเข้า Wallet เรียบร้อยแล้ว!"));
+                }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่เจอรหัสร้านค้า " + shopId)));
             }
 
-            return ResponseEntity.ok("อัปเดตสถานะเป็น " + newStatus + " เรียบร้อยแล้ว");
-        }).orElse(ResponseEntity.badRequest().body("ไม่พบออเดอร์ ID " + orderId));
+            return ResponseEntity.ok(Map.of("message", "อัปเดตสถานะเป็น " + newStatus + " เรียบร้อยแล้ว"));
+        }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่พบออเดอร์ ID " + orderId)));
     }
 
     // 10. API Dashboard (นับออเดอร์ค้าง)

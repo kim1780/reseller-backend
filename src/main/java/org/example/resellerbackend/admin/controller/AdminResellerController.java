@@ -50,20 +50,20 @@ public class AdminResellerController {
     }
 
     @PutMapping("/{id}/approve")
-    public ResponseEntity<String> approveReseller(@PathVariable Long id) {
+    public ResponseEntity<?> approveReseller(@PathVariable Long id) {
         return userRepository.findById(id).map(user -> {
             user.setStatus("approved");
             userRepository.save(user);
-            return ResponseEntity.ok("อนุมัติตัวแทนสำเร็จ");
-        }).orElse(ResponseEntity.badRequest().body("ไม่พบตัวแทน ID " + id));
+            return ResponseEntity.ok(Map.of("message", "อนุมัติตัวแทนสำเร็จ"));
+        }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่พบตัวแทน ID " + id)));
     }
 
     @PutMapping("/{id}/reject")
-    public ResponseEntity<String> rejectReseller(@PathVariable Long id) {
+    public ResponseEntity<?> rejectReseller(@PathVariable Long id) {
         return userRepository.findById(id).map(user -> {
             user.setStatus("rejected");
             userRepository.save(user);
-            return ResponseEntity.ok("ปฏิเสธตัวแทนสำเร็จ");
-        }).orElse(ResponseEntity.badRequest().body("ไม่พบตัวแทน ID " + id));
+            return ResponseEntity.ok(Map.of("message", "ปฏิเสธตัวแทนสำเร็จ"));
+        }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่พบตัวแทน ID " + id)));
     }
 }
