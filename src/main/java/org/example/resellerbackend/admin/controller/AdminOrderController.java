@@ -31,9 +31,10 @@ public class AdminOrderController {
     @GetMapping("/all")
     public ResponseEntity<?> getAllOrders(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "100") int size
+            @RequestParam(defaultValue = "100") int size,
+            @RequestParam(required = false) String search
     ) {
-        return ResponseEntity.ok(adminService.getOrdersPaginated(page, size));
+        return ResponseEntity.ok(adminService.getOrdersPaginated(page, size, search));
     }
 
     // ✅ ดึงรายการสินค้าในออเดอร์ พร้อมชื่อสินค้า
@@ -62,18 +63,18 @@ public class AdminOrderController {
     }
 
     @PutMapping("/{id}/ship")
-    public ResponseEntity<String> shipOrder(@PathVariable Long id) {
+    public ResponseEntity<?> shipOrder(@PathVariable Long id) {
         try {
             adminService.shipOrder(id);
-            return ResponseEntity.ok("จัดส่งและโอนกำไรเข้ากระเป๋าตัวแทนสำเร็จ");
+            return ResponseEntity.ok(Map.of("message", "จัดส่งและโอนกำไรเข้ากระเป๋าตัวแทนสำเร็จ"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
     @PutMapping("/{id}/complete")
-    public ResponseEntity<String> completeOrder(@PathVariable Long id) {
+    public ResponseEntity<?> completeOrder(@PathVariable Long id) {
         adminService.completeOrder(id);
-        return ResponseEntity.ok("เปลี่ยนสถานะออเดอร์เป็นเสร็จสมบูรณ์แล้ว");
+        return ResponseEntity.ok(Map.of("message", "เปลี่ยนสถานะออเดอร์เป็นเสร็จสมบูรณ์แล้ว"));
     }
 }
