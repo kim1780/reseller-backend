@@ -29,8 +29,11 @@ public class AdminOrderController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<?> getAllOrders() {
-        return ResponseEntity.ok(adminService.getAllOrders());
+    public ResponseEntity<?> getAllOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size
+    ) {
+        return ResponseEntity.ok(adminService.getOrdersPaginated(page, size));
     }
 
     // ✅ ดึงรายการสินค้าในออเดอร์ พร้อมชื่อสินค้า

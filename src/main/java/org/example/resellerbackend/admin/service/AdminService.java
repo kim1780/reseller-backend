@@ -15,8 +15,14 @@ import org.example.resellerbackend.repository.WalletLogRepository;
 import org.example.resellerbackend.repository.ShopRepository;
 import org.example.resellerbackend.entity.Shop;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.example.resellerbackend.admin.dto.AdminDashboardFullRes;
+import java.util.Comparator;
+import java.util.Map;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -183,5 +189,110 @@ public class AdminService {
         }
 
         return res;
+
     }
+    public AdminDashboardFullRes getFullDashboard() {
+        AdminDashboardRes stats = getDashboardStats();
+        List<Orders> orders = getAllOrders();
+
+        List<User> resellers = userRepository.findAll().stream()
+                .filter(u -> "reseller".equals(u.getRole()))
+                .sorted(Comparator.comparingLong(User::getId).reversed())
+                .collect(java.util.stream.Collectors.toList());
+
+        List<Map<String, Object>> resellerList = resellers.stream().map(u -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", u.getId());
+            m.put("name", u.getName());
+            m.put("email", u.getEmail());
+            m.put("phone", u.getPhone());
+            m.put("address", u.getAddress());
+            m.put("status", u.getStatus());
+            m.put("createdAt", u.getCreatedAt());
+            shopRepository.findByUserId(u.getId()).ifPresent(shop -> {
+                m.put("shopName", shop.getShopName());
+                m.put("shopSlug", shop.getShopSlug());
+                m.put("shopId", shop.getId());
+            });
+            return m;
+        }).collect(java.util.stream.Collectors.toList());
+
+        return new AdminDashboardFullRes(stats, orders, resellerList);
+    }
+
+    public Map<String, Object> getOrdersData() {
+        List<Orders> orders = getAllOrders();
+
+        List<User> resellers = userRepository.findAll().stream()
+                .filter(u -> "reseller".equals(u.getRole()))
+                .collect(java.util.stream.Collectors.toList());
+
+        List<Map<String, Object>> resellerList = resellers.stream().map(u -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", u.getId());
+            m.put("name", u.getName());
+            shopRepository.findByUserId(u.getId()).ifPresent(shop -> {
+                m.put("shopName", shop.getShopName());
+                m.put("shopId", shop.getId());
+            });
+            return m;
+        }).collect(java.util.stream.Collectors.toList());
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("orderCount", orders.size());
+        result.put("orders", orders);
+        result.put("resellers", resellerList);
+        return result;
+    }
+
+    // ✅ Pagination version ของ getOrdersData
+    public Map<String, Object> getOrdersData(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Orders> ordersPage = ordersRepository.findAllByOrderByIdDesc(pageable);
+
+        List<User> resellers = userRepository.findAll().stream()
+                .filter(u -> "reseller".equals(u.getRole()))
+                .collect(java.util.stream.Collectors.toList());
+
+        List<Map<String, Object>> resellerList = resellers.stream().map(u -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", u.getId());
+            m.put("name", u.getName());
+            shopRepository.findByUserId(u.getId()).ifPresent(shop -> {
+                m.put("shopName", shop.getShopName());
+                m.put("shopId", shop.getId());
+            });
+            return m;
+        }).collect(java.util.stream.Collectors.toList());
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("orders", ordersPage.getContent());
+        result.put("currentPage", ordersPage.getNumber());
+        result.put("totalPages", ordersPage.getTotalPages());
+        result.put("totalOrders", ordersPage.getTotalElements());
+        result.put("pageSize", ordersPage.getSize());
+        result.put("resellers", resellerList);
+        return result;
+    }
+
+    // ✅ Pagination + Search สำหรับ /api/admin/orders/all
+    public Map<String, Object> getOrdersPaginated(int page, int size, String search) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Orders> ordersPage;
+
+        if (search != null && !search.trim().isEmpty()) {
+            ordersPage = ordersRepository.searchOrders(search.trim(), pageable);
+        } else {
+            ordersPage = ordersRepository.findAllByOrderByIdDesc(pageable);
+        }
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("orders", ordersPage.getContent());
+        result.put("currentPage", ordersPage.getNumber());
+        result.put("totalPages", ordersPage.getTotalPages());
+        result.put("totalOrders", ordersPage.getTotalElements());
+        result.put("pageSize", ordersPage.getSize());
+        return result;
+    }
+
 }
