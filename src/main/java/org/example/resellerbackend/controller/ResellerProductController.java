@@ -56,7 +56,7 @@ public class ResellerProductController {
         return ResponseEntity.ok(new WalletDTO(wallet.getBalance(), history));
     }
 
-    // 3. เพิ่มสินค้าเข้าหน้าร้าน (แก้ตามกฎ BR-19 ห้ามต่ำกว่า Min Price)
+    // 3. เพิ่มสินค้าเข้าหน้าร้าน (ห้ามต่ำกว่า Min Price)
     @PostMapping("/shops/{shopId}/products")
     public ResponseEntity<?> addProductToShop(@PathVariable Long shopId, @RequestBody ShopProduct request) {
         if (!shopRepository.existsById(shopId)) {
@@ -81,7 +81,7 @@ public class ResellerProductController {
                 }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่เจอสินค้า ID " + request.getProductId())));
     }
 
-    // 4. แก้ไขราคาขาย (เช็คกฎ BR-19 เหมือนกัน)
+    // 4. แก้ไขราคาขาย
     @PutMapping("/shops/{shopId}/products/{shopProductId}")
     public ResponseEntity<?> updateShopProductPrice(
             @PathVariable Long shopId,
@@ -149,7 +149,7 @@ public class ResellerProductController {
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
     }
-    // 8. สร้างออเดอร์และตัดสต็อก (แก้กฎ BR-23 คำนวณกำไรเอง ห้ามไว้ใจ Frontend)
+    // 8. สร้างออเดอร์และตัดสต็อก (คำนวณกำไรเอง ห้ามไว้ใจ Frontend)
     @Transactional
     @PostMapping("/shops/{shopId}/orders")
     public ResponseEntity<?> createOrder(@PathVariable Long shopId, @RequestBody Orders order) {
@@ -174,7 +174,7 @@ public class ResellerProductController {
             }
 
             // ==========================================
-            // 🔥 หัวใจหลัก BR-23: คำนวณกำไรหลังบ้าน 🔥
+            // 🔥 คำนวณกำไรหลังบ้าน 🔥
             // สูตร: กำไร = (ราคาขาย - ราคาทุน) x จำนวน
             // ==========================================
             BigDecimal costPrice = product.getCostPrice();          // ทุน (จากคลังกลาง)
@@ -204,7 +204,7 @@ public class ResellerProductController {
         }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่เจอสินค้า ID " + order.getId() + " ในระบบคลังกลางนะ")));
     }
 
-    // 9. อัปเดตสถานะออเดอร์ (เปลี่ยนเป็นภาษาไทยตามที่มึงสั่ง!)
+    // 9. อัปเดตสถานะออเดอร์ (เปลี่ยนเป็นภาษา)
     @Transactional
     @PutMapping("/shops/{shopId}/orders/{orderId}/status")
     public ResponseEntity<?> updateOrderStatus(

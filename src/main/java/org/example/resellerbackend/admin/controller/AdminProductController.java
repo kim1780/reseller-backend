@@ -20,7 +20,7 @@ public class AdminProductController {
     public AdminProductController(AdminService adminService) {
         this.adminService = adminService;
     }
-
+    // เพิ่มสินค้าหน้าเเอดมิน
     @PostMapping("/add")
     public ResponseEntity<?> addProduct(@Valid @RequestBody AddProductReq req) {
         if (req.getMinPrice().compareTo(req.getCostPrice()) < 0) {
@@ -30,6 +30,7 @@ public class AdminProductController {
         return ResponseEntity.ok(Map.of("message", "เพิ่มสินค้าเรียบร้อยแล้ว"));
     }
 
+    // หาสินค้าหน้าเเอดมิน
     @GetMapping("/all")
     public ResponseEntity<?> getAllProducts(
             @RequestParam(name = "search", required = false) String search
@@ -41,6 +42,7 @@ public class AdminProductController {
         return ResponseEntity.ok(products);
     }
 
+    //เเก้ไขสินค้า
     @PutMapping("/edit/{id}")
     public ResponseEntity<?> editProduct(@PathVariable Long id, @Valid @RequestBody AddProductReq req) {
         if (req.getMinPrice().compareTo(req.getCostPrice()) < 0) {
@@ -54,6 +56,7 @@ public class AdminProductController {
         }
     }
 
+    //ลบสินค้า
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try {
