@@ -23,6 +23,7 @@ public class AdminReportController {
     @Autowired private ShopRepository shopRepository;
     @Autowired private ProductRepository productRepository;
 
+    //หน้าreport admin
     @GetMapping("/summary")
     public ResponseEntity<?> getSummary() {
         List<AdminOrderEntity> allOrders = orderRepo.findTop100ByOrderByIdDesc();

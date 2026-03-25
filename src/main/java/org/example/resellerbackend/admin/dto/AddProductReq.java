@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 
 public class AddProductReq {
 
+    //เพิ่มสินค้า
     @NotBlank(message = "กรุณากรอกชื่อสินค้า")
     private String name;
 

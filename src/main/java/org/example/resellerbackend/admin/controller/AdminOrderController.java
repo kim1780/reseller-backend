@@ -61,7 +61,7 @@ public class AdminOrderController {
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
     }
-
+    // ปุ่มจดส่งหน้าเเอดมิน
     @PutMapping("/{id}/ship")
     public ResponseEntity<?> shipOrder(@PathVariable Long id) {
         try {
@@ -71,7 +71,7 @@ public class AdminOrderController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
-
+    // จัดส่งสำเร็จ
     @PutMapping("/{id}/complete")
     public ResponseEntity<?> completeOrder(@PathVariable Long id) {
         adminService.completeOrder(id);

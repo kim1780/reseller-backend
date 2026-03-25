@@ -19,6 +19,7 @@ public class AdminResellerController {
     @Autowired private UserRepository userRepository;
     @Autowired private ShopRepository shopRepository;
 
+    // จัดการตัวเเทน
     @GetMapping("/all")
     public ResponseEntity<?> getAllResellers() {
         List<User> resellers = userRepository.findAll().stream()
@@ -49,6 +50,7 @@ public class AdminResellerController {
         return ResponseEntity.ok(result);
     }
 
+    //ยืนยันตัวเเทน
     @PutMapping("/{id}/approve")
     public ResponseEntity<?> approveReseller(@PathVariable Long id) {
         return userRepository.findById(id).map(user -> {
@@ -58,6 +60,7 @@ public class AdminResellerController {
         }).orElse(ResponseEntity.badRequest().body(Map.of("message", "ไม่พบตัวแทน ID " + id)));
     }
 
+    //ปฏิเสธตัวแทน
     @PutMapping("/{id}/reject")
     public ResponseEntity<?> rejectReseller(@PathVariable Long id) {
         return userRepository.findById(id).map(user -> {

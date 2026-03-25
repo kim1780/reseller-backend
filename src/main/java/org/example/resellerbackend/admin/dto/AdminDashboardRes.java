@@ -8,7 +8,7 @@ public class AdminDashboardRes {
     private int totalOrders = 0;
     private int pendingResellers = 0;
 
-    // --- 2 ตัวแปรที่เพิ่มใหม่ตามเอกสารหน้า 5 ---
+    // หน้าdashboard
     private int pendingOrders = 0;
     private int totalResellers = 0;
 

@@ -28,6 +28,8 @@ public class AuthController {
     @Autowired private PasswordEncoder passwordEncoder;
 
     @Transactional
+
+    //สมัคร
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -59,6 +61,7 @@ public class AuthController {
         return ResponseEntity.ok("สมัครสำเร็จ! รอ Admin อนุมัติสถานะ!");
     }
 
+    //login
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         return userRepository.findByEmail(request.getEmail()).map(user -> {
